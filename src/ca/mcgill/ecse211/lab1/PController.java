@@ -7,6 +7,8 @@ public class PController implements UltrasonicController {
   /* Constants */
   private static final int MOTOR_SPEED = 200;
   private static final int FILTER_OUT = 20;
+  public static final double PROPCONST = 1.0; // Proportionality constant
+  public static final int MAXCORRECTION = 50; // Bound on correction to prevent stalling
 
   private final int bandCenter;
   private final int bandWidth;
@@ -40,11 +42,11 @@ public class PController implements UltrasonicController {
     // (n.b. this was not included in the Bang-bang controller, but easily
     // could have).
     //
-    if (distance >= 255 && filterControl < FILTER_OUT) {
+    if (distance >= maxDistance && filterControl < FILTER_OUT) {
       // bad value, do not set the distance var, however do increment the
       // filter value
       filterControl++;
-    } else if (distance >= 255) {
+    } else if (distance >= maxDistance) {
       // We have repeated large values, so there must actually be nothing
       // there: leave the distance alone
       this.distance = distance;
@@ -55,7 +57,6 @@ public class PController implements UltrasonicController {
       this.distance = distance;
     }
 
-    // TODO: process a movement based on the us distance passed in (P style)
   }
 
 
@@ -63,5 +64,23 @@ public class PController implements UltrasonicController {
   public int readUSDistance() {
     return this.distance;
   }
+  
+  public int calcProp(int diff) {
+
+	    int correction;
+
+	    // PROPORTIONAL: Correction is proportional to magnitude of error
+
+	    diff = Math.abs(diff);
+
+	    correction = (int) (PROPCONST * (double) diff);
+	    if (correction >= MOTOR_SPEED) {
+	      correction = MAXCORRECTION;
+	    }
+
+	    return correction;
+	  }
+
+	}
 
 }
