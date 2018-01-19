@@ -4,31 +4,31 @@ import lejos.hardware.motor.*;
 
 public class BangBangController implements UltrasonicController {
 
+	private static final int FILTER_OUT = 10;
+	
 	private final int bandCenter;
 	private final int bandWidth;
 	private final int motorLow;
 	private final int motorHigh;
-	private final int maxFilter = 9;
-	private final int minDistance = 8;
-	private final int maxDistance = 80;
 
 	private int distance;
-	private int filterCounter;
+	private int filterControl;
 	private EV3LargeRegulatedMotor leftMotor, rightMotor;
 
 	public BangBangController(EV3LargeRegulatedMotor leftMotor, EV3LargeRegulatedMotor rightMotor, int bandCenter, int bandWidth, int motorLow, int motorHigh) {
 		// Default Constructor
-		this.leftMotor = leftMotor;
-		this.rightMotor = rightMotor;
 		this.bandCenter = bandCenter;
 		this.bandWidth = bandWidth;
+		
+		this.leftMotor = leftMotor;
+		this.rightMotor = rightMotor;
 		this.motorLow = motorLow;
 		this.motorHigh = motorHigh;
 		leftMotor.setSpeed(motorHigh); // Start robot moving forward
 		rightMotor.setSpeed(motorHigh);
 		leftMotor.forward();
 		rightMotor.forward();
-		filterCounter = 0;
+		filterControl = 0;
 	}
 
 	@Override
@@ -37,50 +37,58 @@ public class BangBangController implements UltrasonicController {
 		 * if data is read more than maxFilter times, do not ignore it.
 		 * Makes the distinction between gaps and the end of the wall.
 		 */
-		if((distance > maxDistance) && (filterCounter < maxFilter)) {
-			filterCounter++;	//ignore value
+		if (distance >= 255 && filterControl < FILTER_OUT) {
+            // bad value, do not set the distance var, however do increment the
+            // filter value
+            filterControl++;
+        } else if (distance >= 255) {
+            // We have repeated large values, so there must actually be nothing
+            // there: leave the distance alone
+        	// our sensor is at 45deg, so this returns correct values
+            this.distance = (int) (distance / java.lang.Math.sqrt(2));
+        } else {
+            // distance went below 255: reset filter and leave
+            // distance alone.
+            filterControl = 0;
+            this.distance = (int) (distance / java.lang.Math.sqrt(2));
+        }
+		if (this.distance > 40) {                                        // sharp turn left
+			this.rightMotor.setSpeed(this.motorHigh);
+	        this.leftMotor.setSpeed(150);
+	        this.leftMotor.forward();
+	        this.rightMotor.forward();
+	    } 
+		else if (this.distance < 5) {                                    // emergency backup
+			this.leftMotor.setSpeed(this.motorHigh);
+	        this.rightMotor.setSpeed(this.motorHigh);
+	        this.leftMotor.backward();
+	        this.rightMotor.backward();
 		}
-		else if(distance > maxDistance) {
-			this.distance = distance;	//not an error
-		}
-		else {
-			this.distance = distance;
-			filterCounter = 0;
-		}
-		
-		if(distance < (bandCenter - bandWidth)) {
-			if(distance <= minDistance) {
-				//too close so turn around
-				leftMotor.setSpeed(motorLow);				
-				rightMotor.setSpeed(motorLow);				
-
-				leftMotor.forward();		
-				rightMotor.backward();
-			} else {	
-				//realign away from wall (right)
-				leftMotor.setSpeed(motorHigh);
-				rightMotor.setSpeed(motorLow);				
-
-				leftMotor.forward();						
-				rightMotor.forward();	
-
-			}
-		} else if (distance > bandCenter + bandWidth){
-			//realign towards wall (left)
-			leftMotor.setSpeed(motorLow);
-			rightMotor.setSpeed(motorHigh);
-
-			leftMotor.forward();
-			rightMotor.forward();
-
-		} else {
-			//within margin of error, straight ahead
-			leftMotor.setSpeed(motorHigh);
-			rightMotor.setSpeed(motorHigh);
-
-			leftMotor.forward();
-			rightMotor.forward();
-		}
+	    else if (this.distance < 10) {                                   // sharp turn right
+	        this.leftMotor.setSpeed(this.motorHigh);
+	        this.rightMotor.setSpeed(0);
+	        this.leftMotor.forward();
+	        this.rightMotor.forward();
+	    }
+	    else if (this.distance < (this.bandCenter - this.bandWidth)) {   // small correction when too close
+	        WallFollowingLab.leftMotor.setSpeed(this.motorHigh);
+	        WallFollowingLab.rightMotor.setSpeed(this.motorLow);
+	        WallFollowingLab.leftMotor.forward();
+	        WallFollowingLab.rightMotor.forward();
+	    }
+	    else if (this.distance > this.bandCenter + this.bandWidth) {     // small correction when too far
+	        WallFollowingLab.leftMotor.setSpeed(this.motorLow);
+	        WallFollowingLab.rightMotor.setSpeed(this.motorHigh);
+	        WallFollowingLab.leftMotor.forward();
+	        WallFollowingLab.rightMotor.forward();
+	    }
+	    else if ((this.distance > (this.bandCenter - this.bandWidth)) && (this.distance < (this.bandCenter + this.bandWidth))) {     
+	        //within margin of error
+	    	WallFollowingLab.leftMotor.setSpeed(this.motorHigh);
+	        WallFollowingLab.rightMotor.setSpeed(this.motorHigh);
+	        WallFollowingLab.leftMotor.forward();
+            WallFollowingLab.rightMotor.forward();
+	    }
 		
 	}
 
