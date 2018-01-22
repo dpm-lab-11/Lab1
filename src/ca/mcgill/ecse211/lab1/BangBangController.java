@@ -4,7 +4,7 @@ import lejos.hardware.motor.*;
 
 public class BangBangController implements UltrasonicController {
 
-	private static final int FILTER_OUT = 10;
+	private static final int FILTER_OUT = 15;
 	
 	private final int bandCenter;
 	private final int bandWidth;

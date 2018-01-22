@@ -6,12 +6,12 @@ public class PController implements UltrasonicController {
 
   /* Constants */
 	private static final int MOTOR_SPEED = 200;
-	private static final int FILTER_OUT = 10;
+	private static final int FILTER_OUT = 15;
 	
 	public static final double PROPCONST = 4.0; // Proportionality constant
-	public static final int MAXCORRECTION = 50; // Bound on correction to prevent stalling
+	public static final int MAXCORRECTION = 60; // Bound on correction to prevent stalling
 	public static final int ERRORTOL = 2; // Error tolerance (cm)
-	private static final int WALLDIST = 20;
+	private static final int WALLDIST = 30;
 	
 	private final int bandCenter;
 	private final int bandWidth;
@@ -38,14 +38,11 @@ public class PController implements UltrasonicController {
         int leftspeed = 0;
         int rightspeed = 0;
 		
-		// rudimentary filter - toss out invalid samples corresponding to null
-		// signal.
-		// (n.b. this was not included in the Bang-bang controller, but easily
-		// could have).
-        if (distance >= 255 && filterControl < FILTER_OUT) {
+		// rudimentary filter - toss out invalid samples corresponding to null signal.
+        if (distance >= 200 && filterControl < FILTER_OUT) {
             // bad value, do not set the distance var, however do increment the filter value
             filterControl++;
-        } else if (distance >= 255) {
+        } else if (distance >= 200) {
             // We have repeated large values, so there must actually be nothing there: leave the distance alone
             this.distance = (int) (distance / java.lang.Math.sqrt(2));
         } else {
@@ -57,26 +54,38 @@ public class PController implements UltrasonicController {
 
 		// Controller Actions
 
-        if (this.distance > 60) {                     	//wall turns left, sharp turn
-            this.leftMotor.setSpeed(MOTOR_SPEED/2);
-            this.rightMotor.setSpeed(MOTOR_SPEED);
-            this.leftMotor.forward();
-            this.rightMotor.forward();
-
+        if (this.distance > 110) {                     	//for when turning around the end of a wall
+            if(filterControl < 5) {						//avoiding a wheel clips the wall
+            	filterControl++;
+            }
+            else {
+            	filterControl = 0;
+            	this.leftMotor.setSpeed(MOTOR_SPEED/2);
+            	this.rightMotor.setSpeed(MOTOR_SPEED/2);
+            	this.leftMotor.forward();
+            	this.rightMotor.forward();
+            }
         }
-        else if (this.distance < 5) { 					//emergency backup
+        
+        /*else*/ if (this.distance < 3) { 					//emergency backup
+            this.leftMotor.setSpeed(MOTOR_SPEED);
+            this.rightMotor.setSpeed(MOTOR_SPEED + 50);
+            this.leftMotor.backward();
+            this.rightMotor.backward();
+        }
+        else if (this.distance < 8) { 					//emergency backup
             this.leftMotor.setSpeed(MOTOR_SPEED);
             this.rightMotor.setSpeed(MOTOR_SPEED);
             this.leftMotor.backward();
             this.rightMotor.backward();
 
         }
-        else if (this.distance < 10) {                 	//wall turns right, sharp turn
+        /*else if (this.distance < 17) {                 	//wall turns right, sharp turn
             WallFollowingLab.leftMotor.setSpeed(MOTOR_SPEED);
-            WallFollowingLab.rightMotor.setSpeed(MOTOR_SPEED/2);
+            WallFollowingLab.rightMotor.setSpeed(MOTOR_SPEED/3);
             WallFollowingLab.leftMotor.forward();
             WallFollowingLab.rightMotor.forward();
-        }
+        }*/
         else {           												// proportional correction section inspired by provided sample code                                         
             if(Math.abs(WALLDIST - this.distance) <= ERRORTOL) {        // within established acceptable error
                 this.leftMotor.setSpeed(MOTOR_SPEED);
